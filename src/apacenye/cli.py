@@ -267,6 +267,7 @@ async def _serve(settings, risk) -> None:
 
     from apacenye.backtest.capture import CaptureWriter
     from apacenye.config import load_strategy_config
+    from apacenye.dataadapters.metar import MetarAdapter
     from apacenye.dataadapters.nws import NwsForecastAdapter
     from apacenye.execution.kalshi import KalshiClient
     from apacenye.marketdata.catalog import MarketCatalog
@@ -325,6 +326,12 @@ async def _serve(settings, risk) -> None:
         capture=capture,
     )
     worker = W1ForecastWorker("W1", w1_config, orch.make_context(), adapter=adapter)
+
+    # --- METAR capture (B-3): record the settlement station's observations
+    # from day one so the OD-12 late-day-persistence study has data. No worker
+    # consumes this yet (W2 is build-blocked); this is capture-only. The
+    # settlement station is shared with W1 (KNYC).
+    metar = MetarAdapter(station=w1_config["station"], capture=capture)
     orch.register_worker(worker, cadence_s=float(w1_config.get("cadence_s", 600)))
     try:
         await worker.initialize()
@@ -348,6 +355,7 @@ async def _serve(settings, risk) -> None:
         orch.expiry_sweeper(),
         scheduler.run(),
         feed.run(),
+        metar.run_capture(),
         server.serve(),
     )
 

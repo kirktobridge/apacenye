@@ -58,3 +58,21 @@ no drift. D5-14 reminder stands: owner still owes a personal
 `apacenye ack --strategy W1 --gate paper` before W1 will START.
 Tests: 105 passed (docs-only change). Backlog: B-2 closed. ODs: OD-8/9/10/15/16/17/18
 ratified. Ratification: — (slate cleared).
+
+## 2026-07-19 — B-3: wire METAR capture into serve (data)
+The `metar.py` adapter existed but nothing polled it, so KNYC observations
+weren't being recorded — future OD-12 data thrown away every day serve ran.
+Added a `capture=` hook to `MetarAdapter.fetch_latest` (mirrors the NWS
+adapter) so it writes to the `metar` channel, plus a capture-only
+`run_capture(interval_s)` poll loop (default 300s) added to serve's task
+gather. No worker consumes this feed yet (W2 is build-blocked on OD-12); it is
+pure recording. Non-obvious decision: unlike a consumer's fetch, the loop must
+NOT crash on a missed METAR (common on the free feed) — it logs and retries
+next tick, where `fetch_latest` itself still raises loudly for a real consumer.
+Station reused from W1 config (KNYC is the shared settlement station); interval
+is a module constant, not money/strategy-tunable. Verified against live NWS:
+fetched KNYC 75.9°F and confirmed the gzip record. Not money-touching — no gate,
+sizing, or ack surface changed; safety invariants untouched.
+Tests: 109 passed (+4 new: capture-write, no-capture, loud-failure, loop-survives-miss).
+Backlog: B-3 closed; B-6 blocker note updated. ODs: — (feeds OD-12, unresolved).
+Ratification: — (no risk-relevant value changed).

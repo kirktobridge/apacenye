@@ -62,7 +62,8 @@ apacenye/
 │   │                       #   (ticker→event + bracket bounds; strict-tail semantics),
 │   │                       #   monitors.py (S1)
 │   ├── workers/            # base.py (lifecycle ABC + WorkerContext), w1_forecast.py
-│   ├── dataadapters/       # nws.py (+ capture hook), metar.py (W2 scaffold)
+│   ├── dataadapters/       # nws.py (+ capture hook), metar.py (KNYC obs
+│   │                       #   capture loop, wired in serve; W2's future signal)
 │   ├── service/            # api.py (REST + WS + pages), ws.py ★ (WsHub), templates/,
 │   │                       #   static/htmx.min.js (1.9.12, vendored)
 │   ├── checkpoint/         # ack.py — K1–K5 gates, hash-chained AckLog, verify
@@ -90,8 +91,9 @@ Tests: `uv run pytest`. Before a strategy will START, the owner must pass
 deleted — the acknowledgment must be the owner's own).
 
 **Not yet done:** W2/E1/S1-as-strategy (design-complete, build-blocked on
-their ODs), METAR capture wiring, and everything on the pre-live list in
-`stage5-implementation-log.md`. (OD-11 resolved 2026-07-19: `sigma_f` is now
+their ODs) and everything on the pre-live list in
+`stage5-implementation-log.md`. (METAR capture wired into `serve` 2026-07-19,
+B-3 — KNYC observations record to the `metar` channel from day one.) (OD-11 resolved 2026-07-19: `sigma_f` is now
 an evidence-based 3.2°F from a committed forecast-error study — see
 `research/estimate_sigma_w1.py`; intraday σ tightening is deferred to shadow
 calibration, backlog B-13.)
