@@ -1,0 +1,13 @@
+# Stage 3 §10 — verbatim required entries. Must be committed before any
+# .env, key file, or data/ content ever exists on disk.
+.env
+.env.*
+!.env.example
+secrets/
+!secrets/README.md
+*.pem
+*.key
+data/
+*.sqlite*
+__pycache__/
+.venv/
