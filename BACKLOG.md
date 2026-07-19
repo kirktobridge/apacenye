@@ -13,6 +13,7 @@ _(nothing committed as next work)_
 - **B-4 — Calibration report tooling** (platform; M) — reliability curve +
   Brier summary from the evaluations table (feeds review-calibration skill).
   blocked-by: enough shadow-forecast samples to be worth plotting (~weeks).
+  plan: docs/plans/B4-PLAN.md (written 2026-07-19).
 - **B-5 — Ledger/capture backup routine** (ops; S) — periodic copy of
   data/apacenye.sqlite + capture/ out of the working tree.
   blocked-by: nothing.
@@ -23,14 +24,24 @@ _(nothing committed as next work)_
   late-day quotes persist at tradeable size? W2's precondition, answerable
   from our own capture. blocked-by: weeks of capture (metar channel now
   recording since B-3 shipped 2026-07-19).
+  plan: docs/plans/B6-PLAN.md (written 2026-07-19) — pre-registration commit
+  is step 1, do it before analysis.
 - **B-7 — W2 late-day determinism worker** (strategy; M) — blocked-by: B-6/OD-12.
+  plan: docs/plans/B7-PLAN.md (written 2026-07-19) — CONDITIONAL, valid only
+  if B-6's verdict is BUILD; do not pick up on SHELVE/EXTEND.
 - **B-8 — Second city onboarding** (data; M) — blocked-by: OD-2 measurement
   from capture + OD-10 ratification of which city.
+  plan-required (Fable) — not yet written; needs capture liquidity evidence
+  + OD-10 city ratification before a plan is meaningful.
 - **B-9 — W1-v1 ensemble p_model** (strategy; L) — same worker, better
-  distribution. blocked-by: B-1 first (fix σ before replacing the model), plus
-  calibration evidence that the Gaussian is the binding limitation.
+  distribution. blocked-by: calibration evidence that the Gaussian is the
+  binding limitation (σ is now evidence-based, OD-11 resolved 2026-07-19).
+  plan-required (Fable) — not yet written; write once B-4 reports have real
+  samples showing the Gaussian is the limitation.
 - **B-10 — E1 FOMC cross-venue worker** (strategy; M) — blocked-by: OD-13
   (fed-funds-futures data path/licensing).
+  plan-required (Fable) — not yet written; OD-13 desk research (free/licensed
+  futures data path) is the gating unknown a plan must resolve first.
 - **B-11 — Dashboard signals view: htmx WebSocket extension** (platform; S) —
   replace 3 s polling on the signals feed; still zero hand-written JS.
   blocked-by: nothing (low value until evaluations flow daily).
@@ -41,6 +52,7 @@ _(nothing committed as next work)_
   track a settled market. blocked-by: nothing.
   Note: crosses cli/feed/worker (event_ticker hot-update path) — plan before
   implementing. Interim mitigation exists via B-15's nightly restart timer.
+  plan-required (Fable) — not yet written.
 - **B-15 — Deploy to always-on host: owner's Raspberry Pi 3B+** (ops; M) —
   run serve continuously under systemd so the capture and shadow-forecast
   clocks stop depending on the owner's desktop being awake.
@@ -56,6 +68,9 @@ _(nothing committed as next work)_
   (OD-9 calibration) or an NDFD gridpoint archive ETL. blocked-by: weeks of
   shadow forecasts, OR an NDFD archive path. Requires weather.py + worker
   signature change (σ by hours-to-settlement).
+  plan-required (Fable) — not yet written; a plan must choose shadow-forecast
+  vs NDFD-ETL source and fix the σ(hours-to-settlement) interface. B-4 output
+  is an input.
 
 ## Hardening-session only
 
