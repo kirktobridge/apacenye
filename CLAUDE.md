@@ -92,6 +92,18 @@ is a placeholder), W2/E1/S1-as-strategy (design-complete, build-blocked on
 their ODs), METAR capture wiring, and everything on the pre-live list in
 `stage5-implementation-log.md`.
 
+## Process
+
+Lifecycle skills, one per phase — don't improvise a parallel process: ideas
+enter via `triage-idea` → `BACKLOG.md`; changes ship via `dev-cycle`
+(tests-first → verify → commit to main → append `DEV_LOG.md` entry);
+running the platform is `operate-paper`; the λ/k/σ evidence loop is
+`review-calibration`; specialized builds (`add-strategy-worker`,
+`onboard-data-source`, `run-backtest`, `review-risk-pre-live`) nest inside
+`dev-cycle`. Living docs (`BACKLOG.md`, `DEV_LOG.md`, strategy one-pagers)
+follow `docs/SCHEMAS.md` — skills validate what they touch. DEV_LOG is
+append-only; backlog items are deleted when shipped, never struck through.
+
 ## Coding standards
 
 - **Money-touching logic is Python only** and written to be *read*: the owner reviews all financial code personally (strong data-science background, Python-only fluency). Boring and explicit beats clever. Plain-language docstrings on every money-touching function.
