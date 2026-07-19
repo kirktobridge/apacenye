@@ -6,9 +6,7 @@ out via the `dev-cycle` skill (which deletes them here and records them in
 
 ## Now
 
-- **B-2 — Owner ratification pass** (docs; S) — ratify OD-8/9/10/15/16/17/18 and
-  D5-1…D5-14; sync any changed number into risk.yaml + CLAUDE.md same-commit.
-  blocked-by: nothing (owner-attended session required).
+_(nothing committed as next work)_
 
 ## Next
 

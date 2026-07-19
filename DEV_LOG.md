@@ -42,3 +42,19 @@ scalar `sigma_f` so no worker-signature change. Note: `sigma_f` is W1 strategy
 config, not in the risk-relevant ack hash, so no paper ack was invalidated.
 Tests: 105 passed (+7 new for the study math). Backlog: B-1 closed, B-13 added.
 ODs: OD-11 resolved. Ratification: — (σ not in Always-Apply Rule 4's ratified set).
+
+## 2026-07-19 — B-2: owner ratification pass (docs)
+Owner attended and ratified the pending Stage 3/5 decisions, all as documented
+— no value moved, so no risk.yaml/CLAUDE.md edit and no paper ack invalidated.
+Ratified: OD-8 ($1,000 bankroll), OD-9 (λ=0.5, k=0.25 — kept as the pre-
+calibration defaults; future changes still gated by the OD-9 evidence rule),
+OD-10 (NYC-first, second city deferred to OD-2 liquidity data), OD-15 (`quote_seen`
+kept on OrderIntent), OD-16 (50% portfolio cap), OD-17 (−5% portfolio auto-kill),
+OD-18 (localhost/no-auth dashboard), and the D5-1…D5-14 implementation
+deviations. Recorded here rather than in the Stage handoffs, which SCHEMAS.md
+freezes as historical (their "awaiting ratification" lines stand as the record
+of what was pending at the time). risk.yaml already matched CLAUDE.md — verified,
+no drift. D5-14 reminder stands: owner still owes a personal
+`apacenye ack --strategy W1 --gate paper` before W1 will START.
+Tests: 105 passed (docs-only change). Backlog: B-2 closed. ODs: OD-8/9/10/15/16/17/18
+ratified. Ratification: — (slate cleared).
