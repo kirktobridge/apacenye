@@ -1,0 +1,25 @@
+<table>
+  <tr><th>id</th><th>state</th><th>day P&amp;L $ (stop {{ '%.0f'|format(daily_stop) }})</th>
+      <th>heartbeat</th><th>ack</th><th></th></tr>
+  {% for s in strategies %}
+  <tr>
+    <td>{{ s.strategy_id }}</td>
+    <td>{{ s.state }}</td>
+    <td class="{{ 'pos' if s.day_pnl_dollars >= 0 else 'neg' }}">{{ '%.2f'|format(s.day_pnl_dollars) }}</td>
+    <td class="muted">{{ s.heartbeat_ts or 'never' }}</td>
+    <td>{{ '✓ valid' if s.ack_valid else '✗ missing/stale — run apacenye ack' }}</td>
+    <td>
+      {% if s.state == 'START' %}
+      <button class="small" hx-post="/api/strategies/{{ s.strategy_id }}/pause"
+              hx-swap="none" hx-confirm="Pause {{ s.strategy_id }}?">pause</button>
+      {% else %}
+      <button class="small" hx-post="/api/strategies/{{ s.strategy_id }}/resume"
+              hx-swap="none" hx-confirm="Resume {{ s.strategy_id }}? (requires valid paper ack; blocked while killed)">resume</button>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% for s in strategies %}
+<details><summary>{{ s.strategy_id }} config</summary><pre>{{ s.config }}</pre></details>
+{% endfor %}

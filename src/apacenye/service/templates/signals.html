@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Signal / reasoning feed</h2>
+<div hx-get="/fragments/signals" hx-trigger="load, every 3s" hx-swap="innerHTML"></div>
+{% endblock %}

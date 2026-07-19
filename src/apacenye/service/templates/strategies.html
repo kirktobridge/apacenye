@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Strategies</h2>
+<div hx-get="/fragments/strategies" hx-trigger="load, every 3s" hx-swap="innerHTML"></div>
+{% endblock %}

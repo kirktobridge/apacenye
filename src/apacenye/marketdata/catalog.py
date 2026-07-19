@@ -52,14 +52,25 @@ class MarketCatalog:
     def add_from_kalshi_market(self, market: dict) -> MarketInfo:
         """Build an entry from one Kalshi GetMarkets market object.
 
-        Bracket bounds come from `floor_strike`/`cap_strike` when present
-        (temperature markets), falling back to parsing the subtitle. Bounds
-        are informational for W1's bracket math; exposure aggregation needs
-        only `event_ticker`, which Kalshi supplies directly.
+        Bracket bounds come from `floor_strike`/`cap_strike`, with semantics
+        VERIFIED against live KXHIGHNY rules text (2026-07-19):
+        - both present → INCLUSIVE range ("between 86-87°": floor 86, cap 87)
+        - floor only  → STRICTLY greater ("greater than 87°" = 88 or above),
+          so the inclusive lower bound is floor + 1
+        - cap only    → STRICTLY less ("less than 80°" = 79 or below),
+          so the inclusive upper bound is cap − 1
+        Getting these edges wrong misprices every tail by one degree —
+        contract-mapping is where the bugs live (Stage 2 §3.3).
         """
-        lo = market.get("floor_strike")
-        hi = market.get("cap_strike")
-        if lo is None and hi is None:
+        floor = market.get("floor_strike")
+        cap = market.get("cap_strike")
+        if floor is not None and cap is not None:
+            lo, hi = float(floor), float(cap)
+        elif floor is not None:
+            lo, hi = float(floor) + 1.0, None
+        elif cap is not None:
+            lo, hi = None, float(cap) - 1.0
+        else:
             lo, hi = _parse_bracket(market.get("subtitle") or market.get("yes_sub_title") or "")
         info = MarketInfo(
             ticker=market["ticker"],

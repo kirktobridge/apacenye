@@ -1,0 +1,18 @@
+<table>
+  <tr><th>strategy</th><th>market</th><th>side</th><th>count</th>
+      <th>cost basis $</th><th>fees $</th><th>mark (mid)</th><th>unrealized $</th></tr>
+  {% for p in positions %}
+  <tr>
+    <td>{{ p.strategy_id }}</td><td>{{ p.market_ticker }}</td><td>{{ p.side }}</td>
+    <td>{{ p.count }}</td>
+    <td>{{ '%.2f'|format(p.cost_basis_dollars) }}</td>
+    <td>{{ '%.2f'|format(p.fees_paid_dollars) }}</td>
+    <td>{{ '%.2f'|format(p.mark_mid_dollars) if p.mark_mid_dollars is not none else '—' }}</td>
+    <td class="{{ 'pos' if (p.unrealized_dollars or 0) >= 0 else 'neg' }}">
+      {{ '%.2f'|format(p.unrealized_dollars) if p.unrealized_dollars is defined else '—' }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="muted">no open positions</td></tr>
+  {% endfor %}
+</table>
+<p class="muted">marks are indicative mids — risk display only, never fill prices</p>

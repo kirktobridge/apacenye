@@ -20,7 +20,9 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-CHANNELS = ("book", "trade", "settlement", "nws_forecast", "metar")
+CHANNELS = ("book", "trade", "settlement", "nws_forecast", "metar", "market")
+# "market" records catalog metadata (ticker→event, bracket bounds) so replay
+# can rebuild the catalog the live system loads from the API at boot.
 
 
 class CaptureWriter:

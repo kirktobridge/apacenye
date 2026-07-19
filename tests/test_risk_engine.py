@@ -265,7 +265,8 @@ def test_g10_strategy_daily_loss_auto_pauses(tmp_path):
         # SYNTHETIC: seed a realized loss of $25 (> 2% of $1,000) today.
         env.seed_position(TICKER_B85, count=50, price=0.50, fee=0.88, intent="s1")
         env.ledger.settle_market(TICKER_B85, settled_side=Side.NO)  # −$25.88
-        d = env.engine.evaluate(make_intent())
+        # intent on a still-open bracket (B85 itself is now settled → G0)
+        d = env.engine.evaluate(make_intent(market_ticker=TICKER_B90))
         assert d.status is DispositionStatus.REJECTED
         assert "G10" in d.binding_gates
         assert "W1" in env.paused  # auto-PAUSE side effect; human must un-pause
@@ -281,7 +282,7 @@ def test_g10_portfolio_daily_loss_trips_kill(tmp_path):
         env.seed_position(TICKER_CHI, strategy="W2", count=60, price=0.50, fee=1.05, intent="s2")
         env.ledger.settle_market(TICKER_B85, settled_side=Side.NO)
         env.ledger.settle_market(TICKER_CHI, settled_side=Side.NO)  # ≈ −$62
-        d = env.engine.evaluate(make_intent())
+        d = env.engine.evaluate(make_intent(market_ticker=TICKER_B90))
         assert d.status is DispositionStatus.REJECTED
         assert env.kill.is_killed()  # OD-17: kill switch trips automatically
     finally:

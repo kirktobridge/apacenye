@@ -1,0 +1,43 @@
+<h2>Portfolio</h2>
+<table>
+  <tr><th>measure</th><th>value</th><th>cap / stop</th></tr>
+  <tr><td>exposure (incl. reservations)</td>
+      <td>${{ '%.2f'|format(risk_data.portfolio_exposure_dollars) }}</td>
+      <td>${{ '%.2f'|format(risk_data.portfolio_cap_dollars) }}</td></tr>
+  <tr><td>realized P&amp;L today</td>
+      <td class="{{ 'pos' if risk_data.realized_pnl_today_dollars >= 0 else 'neg' }}">
+        ${{ '%.2f'|format(risk_data.realized_pnl_today_dollars) }}</td>
+      <td>portfolio stop ${{ '%.2f'|format(risk_data.portfolio_daily_stop_dollars) }} → kill</td></tr>
+  <tr><td>kill switch</td><td>{{ 'ACTIVE' if risk_data.killed else 'clear' }}</td><td></td></tr>
+</table>
+<h2>Per-event exposure (all brackets of one event = one exposure)</h2>
+<table>
+  <tr><th>event</th><th>exposure $</th><th>cap $</th><th></th></tr>
+  {% for e in risk_data.events %}
+  <tr><td>{{ e.event_ticker }}</td>
+      <td>{{ '%.2f'|format(e.exposure_dollars) }}</td>
+      <td>{{ '%.2f'|format(e.cap_dollars) }}</td>
+      <td style="width:30%"><div class="bar"><div style="width: {{ (100 * e.exposure_dollars / e.cap_dollars)|round|int }}%"
+        class="{{ 'warn' if e.exposure_dollars > 0.8 * e.cap_dollars }}"></div></div></td></tr>
+  {% endfor %}
+</table>
+<h2>Per-strategy exposure</h2>
+<table>
+  <tr><th>strategy</th><th>exposure $</th><th>cap $</th></tr>
+  {% for s in risk_data.strategies %}
+  <tr><td>{{ s.strategy_id }}</td>
+      <td>{{ '%.2f'|format(s.exposure_dollars) }}</td>
+      <td>{{ '%.2f'|format(s.cap_dollars) }}</td></tr>
+  {% endfor %}
+</table>
+<h2>Acknowledgment log (read-only; chain: {{ acks.chain }})</h2>
+<table>
+  <tr><th>seq</th><th>ts</th><th>gate</th><th>strategy</th><th>result</th><th>note</th></tr>
+  {% for a in acks.records %}
+  <tr><td>{{ a.seq }}</td><td class="muted">{{ (a.ts or '')[:19] }}</td>
+      <td>{{ a.gate }}</td><td>{{ a.strategy_id }}</td><td>{{ a.result }}</td>
+      <td class="muted">{{ a.outcome_note or '' }}</td></tr>
+  {% else %}
+  <tr><td colspan="6" class="muted">no acknowledgments yet</td></tr>
+  {% endfor %}
+</table>

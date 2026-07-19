@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Apacenyë — {{ run_mode }}</title>
+  <script src="/static/htmx.min.js"></script>
+  <style>
+    body { font-family: ui-monospace, Menlo, Consolas, monospace; margin: 0;
+           background: #101418; color: #d8dee6; }
+    header { display: flex; gap: 1.5rem; align-items: center; padding: .6rem 1rem;
+             background: #1a2028; border-bottom: 1px solid #2a323e; }
+    header a { color: #8ab4d8; text-decoration: none; }
+    header a:hover { text-decoration: underline; }
+    .banner-kill { background: #7a1f1f; color: #fff; padding: .5rem 1rem;
+                   font-weight: bold; }
+    .banner-mode { background: #24435c; color: #cfe3f5; padding: .25rem 1rem;
+                   font-size: .85rem; }
+    main { padding: 1rem; max-width: 1100px; }
+    table { border-collapse: collapse; width: 100%; margin: .5rem 0 1.25rem; }
+    th, td { text-align: left; padding: .3rem .6rem; border-bottom: 1px solid #2a323e;
+             font-size: .9rem; }
+    th { color: #8a94a2; font-weight: normal; }
+    .pos { color: #7fc98a; } .neg { color: #e08787; }
+    .bar { background: #232b35; height: 10px; border-radius: 5px; overflow: hidden; }
+    .bar > div { background: #4a7fb5; height: 100%; }
+    .bar > div.warn { background: #b5764a; }
+    button.kill { background: #a12626; color: #fff; border: none; padding: .5rem 1.1rem;
+                  border-radius: 4px; font-weight: bold; cursor: pointer; }
+    button.small { background: #2a3542; color: #d8dee6; border: 1px solid #3a4654;
+                   padding: .2rem .7rem; border-radius: 3px; cursor: pointer; }
+    h2 { font-size: 1rem; color: #a9b4c2; margin: 1.2rem 0 .3rem; }
+    .muted { color: #6a7482; font-size: .8rem; }
+    details > summary { cursor: pointer; color: #8ab4d8; }
+    pre { background: #161c24; padding: .5rem; overflow-x: auto; font-size: .8rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Apacenyë</strong>
+    <a href="/">overview</a>
+    <a href="/strategies">strategies</a>
+    <a href="/signals">signals</a>
+    <a href="/risk">risk</a>
+    <span class="muted">paper-only bootstrap — live hard-disabled</span>
+  </header>
+  {% if killed %}
+  <div class="banner-kill">⛔ KILL SWITCH ACTIVE — {{ kill_state.reason if kill_state }}
+    (un-kill is CLI-only: <code>apacenye unkill</code>)</div>
+  {% endif %}
+  <div class="banner-mode">mode: {{ run_mode }} · equity: ${{ '%.2f'|format(equity) }}
+    <span class="muted">(paper equity is an optimistic bound)</span></div>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

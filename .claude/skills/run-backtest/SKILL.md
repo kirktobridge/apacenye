@@ -19,12 +19,12 @@ The harness is **replay, not simulation-from-scratch** (`stage3-architecture.md`
 5. **Read P&L with its bias stated**: paper fills are an **optimistic bound** — no queue competition, no market impact, no partial-fill adverse selection, and replayed books may themselves have been stale.
 6. **Report with the mandatory limitations attached** (verbatim policy, binding per Stage 3 §9): until several weeks of our own capture exist, **all backtest results are illustrative-only and are NOT a basis for live confidence** — they may not be cited in any live-enablement argument. No synthetic data may ever be presented as historical. Every report/dashboard/summary showing backtest numbers must repeat this.
 
-## Verify After Scaffolding
+## Verified After Scaffolding (Stage 5, 2026-07-19)
 
-- [ ] Actual backtest entry point: CLI subcommand vs. module invocation, and its real flags.
-- [ ] Capture directory layout and JSONL schema match `data/capture/YYYY-MM-DD/<channel>.jsonl.gz` and the line format above; confirm real channel names.
-- [ ] Whether the harness auto-detects coverage gaps or step 2 must be done manually (and with what tool).
-- [ ] Where calibration outputs (Brier/reliability) actually come from: harness-computed, a pandas notebook, or an `/api/evaluations` export.
-- [ ] OD-14: do the Kalshi historical endpoints exist, at what granularity, under what terms?
-- [ ] That replay drives the same `TickScheduler` tick objects (not a parallel scheduler implementation).
-- [ ] Where backtest results get written, so the illustrative-only label is attached at the source.
+- [x] Entry point: `apacenye backtest --strategy <id> --from YYYY-MM-DD --to YYYY-MM-DD` (the Stage 4 guess turned out exact). Module API: `apacenye.backtest.replay.run_replay(...)`.
+- [x] Capture layout/schema confirmed: `data/capture/YYYY-MM-DD/<channel>.jsonl.gz`, line `{"ts", "type", "ticker"|"station", "payload"}`. Real channels: `book`, `trade`, `settlement`, `nws_forecast`, `metar`, **plus `market`** (catalog metadata: ticker→event + bracket bounds). The `market` channel is REQUIRED for honest replay — without it bracket bounds are unknown and the harness flags the strategy's probabilities as unusable.
+- [x] Coverage gaps are auto-detected: `run_replay` returns them in `warnings` and the CLI prints them. No manual pre-check needed, but read the warnings.
+- [x] Calibration is harness-computed: `brier_model` vs `brier_market` (the market-mid benchmark) in the result dict, from shadow evaluations joined to captured settlements. Deeper analysis (reliability curves) = pandas over the `evaluations` table or `GET /api/evaluations`.
+- [ ] OD-14 (Kalshi historical candlestick/trade endpoints) remains UNVERIFIED — irrelevant to the harness, which replays only our own capture; any future use of those endpoints is illustrative-only by construction (no book depth).
+- [x] Replay drives the same `TickScheduler` via `fire_due(virtual_now)` — the identical emission path live serving uses; the risk engine takes an injected `now_fn` so TTL/staleness gates run on replay time.
+- [x] Results: `run_replay` returns a dict whose `label` field IS the illustrative-only statement (attached at the source); the CLI prints it first. Nothing is persisted — rerun to reproduce.

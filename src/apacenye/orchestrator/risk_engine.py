@@ -64,6 +64,7 @@ class RiskEngine:
         get_strategy_state: Callable[[str], LifecycleState],
         pause_strategy: Callable[[str, str], None],
         staleness_window_s: Callable[[str], float],
+        now_fn: Callable[[], datetime] = utcnow,  # replay injects virtual time
     ):
         self.risk = risk
         self.ledger = ledger
@@ -73,6 +74,7 @@ class RiskEngine:
         self.get_strategy_state = get_strategy_state
         self.pause_strategy = pause_strategy
         self.staleness_window_s = staleness_window_s
+        self.now_fn = now_fn
         self._reservations: dict[str, _Reservation] = {}
 
     # ------------------------------------------------------------ reservations
@@ -100,7 +102,7 @@ class RiskEngine:
     def evaluate(self, intent: OrderIntent, human_initiated: bool = False) -> Disposition:
         """Run the full pipeline; always returns a Disposition (never raises
         for a merely-bad intent — a bad intent is a REJECTED disposition)."""
-        now = utcnow()
+        now = self.now_fn()
         self._sweep_expired_reservations(now)
 
         def reject(gate: str, reason: str) -> Disposition:
@@ -115,6 +117,10 @@ class RiskEngine:
         # we check what only runtime knows: the TTL.
         if intent.ts + timedelta(seconds=intent.ttl_seconds) <= now:
             return reject("G0", "intent TTL expired before evaluation")
+        if self.ledger.market_status(intent.market_ticker) == "settled":
+            # a stale book can outlive its market in the snapshot cache; a
+            # settled market accepts no orders of any kind
+            return reject("G0", "market is settled")
 
         # G1 — kill switch (os.stat on the sentinel file, every single time).
         if self.kill.is_killed():
@@ -249,7 +255,7 @@ class RiskEngine:
 
     def risk_summary(self) -> dict:
         """Headroom view for GET /api/risk and the dashboard."""
-        self._sweep_expired_reservations(utcnow())
+        self._sweep_expired_reservations(self.now_fn())
         port_used = self.ledger.portfolio_exposure_dollars() + self._reserved_dollars()
         return {
             "bankroll_usd": self.risk.bankroll_usd,

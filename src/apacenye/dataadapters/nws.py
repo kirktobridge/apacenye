@@ -40,13 +40,14 @@ class NwsForecastAdapter:
     """Fetches today's forecast high for one station's NWS grid point."""
 
     def __init__(self, station: str, grid_office: str, grid_x: int, grid_y: int,
-                 client: httpx.AsyncClient | None = None):
+                 client: httpx.AsyncClient | None = None, capture=None):
         self.station = station
         self.url = (f"https://api.weather.gov/gridpoints/{grid_office}/"
                     f"{grid_x},{grid_y}/forecast")
         self._client = client or httpx.AsyncClient(
             timeout=20.0, headers={"User-Agent": USER_AGENT}
         )
+        self._capture = capture  # optional CaptureWriter — replay data from day one
 
     async def fetch_forecast_high(self) -> ForecastHigh:
         try:
@@ -68,13 +69,20 @@ class NwsForecastAdapter:
                 f"no daytime period with a temperature for {self.station} "
                 "(late-evening fetch? W1 trades next morning)"
             )
-        return ForecastHigh(
+        forecast = ForecastHigh(
             station=self.station,
             high_f=float(daytime["temperature"]),
             source_ts=datetime.fromisoformat(source_ts_raw.replace("Z", "+00:00")),
             fetched_ts=datetime.now(timezone.utc),
             period_name=daytime.get("name", ""),
         )
+        if self._capture is not None:
+            self._capture.write("nws_forecast", {
+                "high_f": forecast.high_f,
+                "source_ts": forecast.source_ts.isoformat(),
+                "period_name": forecast.period_name,
+            }, station=self.station, ts=forecast.fetched_ts)
+        return forecast
 
     async def close(self) -> None:
         await self._client.aclose()

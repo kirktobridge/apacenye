@@ -58,6 +58,12 @@ class MarketDataService:
         for m in data.get("markets", []):
             info = self.catalog.add_from_kalshi_market(m)
             tickers.append(info.ticker)
+            if self.capture:
+                self.capture.write("market", {
+                    "ticker": info.ticker, "event_ticker": info.event_ticker,
+                    "bracket_lo": info.bracket_lo, "bracket_hi": info.bracket_hi,
+                    "title": info.title, "status": info.status,
+                }, ticker=info.ticker)
         return tickers
 
     async def poll_once(self) -> None:

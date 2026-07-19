@@ -96,6 +96,12 @@ class PaperExecutionClient:
     def resting_count(self) -> int:
         return len(self._resting)
 
+    def order_remaining(self, order_id: str) -> int:
+        """Unfilled remainder of a submitted order (0 = fully filled/expired).
+        Unknown order ids report 0 — nothing outstanding."""
+        order = self._orders.get(order_id)
+        return order.remaining if order is not None else 0
+
     def resting_orders(self) -> list[dict]:
         return [
             {"intent_id": o.intent.intent_id, "ticker": o.intent.market_ticker,

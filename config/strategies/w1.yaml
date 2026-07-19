@@ -1,0 +1,30 @@
+# W1-v0 — forecast-anchored Gaussian, NYC/Central Park (OD-10: NYC first).
+# The settlement source is the NWS Climatological Report (Daily) for KNYC;
+# the signal is the NWS public forecast for the same station's grid point.
+#
+# Verified live 2026-07-19:
+#   - NWS grid for Central Park (40.7789, -73.9692): OKX 34,45
+#   - Kalshi series KXHIGHNY exists; events like KXHIGHNY-26JUL19 with
+#     floor/cap strikes (tails are STRICT inequalities — see catalog.py)
+
+station: KNYC
+grid_office: OKX
+grid_x: 34
+grid_y: 45
+
+# The daily event is resolved at serve start: the open event in this series
+# with the earliest close time. Set event_ticker explicitly to override.
+series_ticker: KXHIGHNY
+# event_ticker: KXHIGHNY-26JUL19
+
+# model
+sigma_f: 3.0            # PLACEHOLDER forecast-error std (°F): a typical
+                        # summer 1-day-ahead value; NOT yet estimated from the
+                        # station's archive (OD-11). Calibration data from
+                        # shadow forecasts is what will justify tuning this.
+
+# cadence & freshness
+cadence_s: 600            # evaluate every 10 minutes on platform ticks
+forecast_refresh_s: 1800  # refetch NWS at most every 30 minutes
+staleness_s: 43200        # forecast older than 12h ⇒ no intents + cancel (G4)
+intent_ttl_s: 600         # no immortal intents

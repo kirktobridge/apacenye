@@ -1,0 +1,36 @@
+<h2>Recent intents &amp; dispositions</h2>
+<table>
+  <tr><th>ts</th><th>strategy</th><th>market</th><th>side/action</th><th>size→final</th>
+      <th>status</th><th>gates</th><th>reason</th></tr>
+  {% for i in intents %}
+  <tr>
+    <td class="muted">{{ i.ts[:19] }}</td>
+    <td>{{ i.strategy_id }}</td><td>{{ i.market_ticker }}</td>
+    <td>{{ i.side }}/{{ i.action }}</td>
+    <td>{{ i.size_contracts }}→{{ i.final_size if i.final_size is not none else '—' }}</td>
+    <td>{{ i.status or 'pending' }}</td>
+    <td class="muted">{{ i.binding_gates or '' }}</td>
+    <td class="muted">{{ i.reason or '' }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="muted">none yet</td></tr>
+  {% endfor %}
+</table>
+<h2>Shadow forecasts (every evaluation, traded or not)</h2>
+<table>
+  <tr><th>ts</th><th>strategy</th><th>market</th><th>p_model</th><th>p_market (mid)</th>
+      <th>net edge</th><th>qualified</th><th>note</th></tr>
+  {% for e in evaluations %}
+  <tr>
+    <td class="muted">{{ e.ts[:19] }}</td>
+    <td>{{ e.strategy_id }}</td><td>{{ e.market_ticker }}</td>
+    <td>{{ '%.3f'|format(e.model_probability) }}</td>
+    <td>{{ '%.3f'|format(e.market_implied_probability) if e.market_implied_probability is not none else '—' }}</td>
+    <td>{{ '%.3f'|format(e.net_edge) if e.net_edge is not none else '—' }}</td>
+    <td>{{ 'yes' if e.qualified else 'no' }}</td>
+    <td class="muted">{{ e.note }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="muted">none yet</td></tr>
+  {% endfor %}
+</table>

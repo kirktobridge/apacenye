@@ -19,12 +19,12 @@ A market is only tradeable if its data is honest: sourced as close to the **sett
 8. **Measure liquidity before any strategy trades it** (OD-2 gate): observe typical spread, top-of-book depth, and volume from live read-only data. Gate: spread cost ≤ 2¢ and depth supporting intended size, else the series is untradeable regardless of model quality — record the measurement.
 9. **Test with recorded fixtures**: save real captured responses as test fixtures; unit-test parsing, timestamp extraction, timezone/DST handling (bit W2's design already), and the failure modes (missing observations, revised values, schema drift).
 
-## Verify After Scaffolding
+## Verified After Scaffolding (Stage 5, 2026-07-19)
 
-- [ ] Adapter home `src/apacenye/dataadapters/` and the actual shared adapter interface (base class? protocol? free functions?).
-- [ ] Capture-writer registration API and real channel-naming convention (`nws_forecast`, `metar`, … as listed in Stage 3 §9).
-- [ ] Catalog location `src/apacenye/marketdata/catalog.py` and how ticker→event mappings are declared (code, YAML, or DB-backed).
-- [ ] How the S1 monitor discovers bracket sets (automatic from catalog vs. explicit registration).
-- [ ] Where staleness windows live in strategy config and the exact key names G4 reads.
-- [ ] `.env` naming convention for new source credentials and the secret-redaction mechanism to hook into.
-- [ ] Whether a per-source rate-limit/backoff helper exists to reuse rather than reimplement.
+- [x] Adapter home `src/apacenye/dataadapters/`. Interface: **no base class** — duck-typed classes (`NwsForecastAdapter`, `MetarAdapter`) exposing `async fetch_*()` methods that return frozen dataclasses carrying `source_ts` (publication time) AND `fetched_ts`; failures raise adapter-specific errors loudly. Match this shape; workers take the adapter via constructor injection (replay substitutes a canned one).
+- [x] Capture registration: pass the `CaptureWriter` into the adapter constructor (see `NwsForecastAdapter(capture=...)`) or call `capture.write(channel, payload, ticker=|station=, ts=)` directly. Real channels: `book`, `trade`, `settlement`, `nws_forecast`, `metar`, `market` (catalog metadata — REQUIRED for replay to know bracket bounds; `feed.load_event_markets` writes it).
+- [x] Catalog: `src/apacenye/marketdata/catalog.py`, code-declared via `add_from_kalshi_market(market_dict)`. **Bracket-bound semantics verified live (KXHIGHNY, 2026-07-19): floor+cap = inclusive range; floor-only = STRICTLY greater (lo = floor+1); cap-only = STRICTLY less (hi = cap−1).** Re-verify these edge semantics per new series — an off-by-one misprices every tail.
+- [x] S1 discovers bracket sets automatically from the catalog (`brackets_of_event`); no explicit registration. It alerts only when EVERY bracket has a two-sided quote.
+- [x] Staleness windows: strategy YAML key `staleness_s` (e.g. W1 `43200`); G4 reads it via the orchestrator and checks every `*_ts` key in `key_inputs` against it. One window per strategy in v0.
+- [x] `.env` convention: `<SOURCE>_API_KEY_ID` / `<SOURCE>_..._PATH` style (see `KALSHI_*`); add the field to `AppSettings` as `SecretStr` (redaction is automatic) and a placeholder to `.env.example`.
+- [x] Rate limiting: `_RateLimiter` (async token bucket) lives in `execution/kalshi.py` alongside its backoff-on-429 `_get`; for a new rate-limited source, lift that pattern (or import the class) rather than reimplementing. NWS needs only a polite `User-Agent` and modest poll cadence.

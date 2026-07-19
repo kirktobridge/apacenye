@@ -1,0 +1,26 @@
+# config/risk.yaml — every value here is enforced by the gate pipeline
+# (G0–G10, src/apacenye/orchestrator/risk_engine.py). Stage 3 §3.2 defaults,
+# conservative pending live data. DO NOT loosen without user ratification
+# (CLAUDE.md always-apply rule 4). Changing a risk-relevant value invalidates
+# paper acknowledgments and forces re-acknowledgment (checkpoint/ack.py).
+#
+# Env overrides: prefix RISK__ (e.g. RISK__MAX_ORDER_CONTRACTS=50);
+# every override is logged at startup.
+
+bankroll_usd: 1000              # OD-8 — paper notional
+max_event_exposure_pct: 5       # all brackets of one event = ONE exposure (OD-7)
+max_strategy_exposure_pct: 20
+max_portfolio_exposure_pct: 50  # OD-16 — always dominates (min-of-headrooms)
+max_order_contracts: 100        # unit-bug backstop — never remove
+max_depth_fraction: 0.25        # of visible top-of-book depth
+strategy_daily_loss_pct: 2      # breach ⇒ auto-PAUSE that strategy (human un-pause)
+portfolio_daily_loss_pct: 5     # OD-17 — breach ⇒ kill switch trips automatically
+heartbeat_timeout_s: 120
+max_worker_restarts_per_day: 3
+
+# sizing hyperparameters (OD-9 — change ONLY on shadow-forecast calibration
+# evidence, never on vibes)
+shrinkage_lambda: 0.5
+kelly_multiplier: 0.25
+min_net_edge: 0.04              # OD-4, user-ratified
+slippage_allowance_dollars: 0.01

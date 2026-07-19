@@ -19,12 +19,12 @@ This workflow **leads up to and triggers the Stage 3 §11 concept checkpoint —
 8. **Then trigger the checkpoint**: `apacenye enable-live --strategy <id>` — which requires completing the full live gate (all five concepts K1–K5, computed from the strategy's *current* config, typed acknowledgments, 3-failure abort), appends the attempt to `data/acks/acknowledgments.jsonl`, and in this bootstrap then prints the hard-disable refusal and records it. Verify log integrity any time with `apacenye ack --verify-log`.
 9. **Never bypass the wall.** If the review concludes "ready," the correct output is a note that a future dedicated hardening session (with its own acceptance gate and a fresh acknowledgment) is the next step — not code changes to `execution/live.py`.
 
-## Verify After Scaffolding
+## Verified After Scaffolding (Stage 5, 2026-07-19)
 
-- [ ] CLI spellings and flags: `apacenye enable-live --strategy <id>`, `apacenye ack --strategy <id> --gate live`, `apacenye ack --verify-log`.
-- [ ] Ack log path `data/acks/acknowledgments.jsonl` and the hash-chain fields (`seq`, `prev_sha256`) as implemented.
-- [ ] Which config params are "risk-relevant" for the config hash (Stage 3 §11.2 list: bankroll, exposure caps, k, λ, edge floor) as actually implemented.
-- [ ] API endpoints exist as named: `/api/evaluations`, `/api/intents`, `/api/risk`, `/api/acks`.
-- [ ] Where shadow-forecast calibration metrics are computed (endpoint, notebook, or CLI report).
-- [ ] That the enable-live flow really terminates at `LiveDisabledError` and records the refusal note.
-- [ ] Ledger table names used above (`evaluations`, dispositions) match the real DDL.
+- [x] CLI spellings all confirmed: `apacenye enable-live --strategy <id>`, `apacenye ack --strategy <id> --gate live`, `apacenye ack --verify-log`.
+- [x] Ack log at `data/acks/acknowledgments.jsonl`; chain fields `seq` and `prev_sha256` (sha256 of the previous LINE; 64 zeros at genesis), written O_APPEND. `--verify-log` walks the chain.
+- [x] Risk-relevant hash params as implemented (`checkpoint/ack.py::RISK_RELEVANT_FIELDS`): `bankroll_usd`, `max_event_exposure_pct`, `max_strategy_exposure_pct`, `max_portfolio_exposure_pct`, **`max_order_contracts`, `max_depth_fraction`** (both added beyond the Stage 3 §11.2 minimum — "all exposure caps" read broadly, conservative direction, D5-6), `kelly_multiplier`, `shrinkage_lambda`, `min_net_edge`. Daily-loss stops and staleness windows do NOT invalidate acks.
+- [x] Endpoints exist as named: `/api/evaluations`, `/api/intents`, `/api/risk`, `/api/acks` (plus `/api/explanations/{intent_id}`).
+- [x] Calibration metrics: the replay harness computes Brier (model vs. market benchmark) per run; live-shadow-forecast analysis is pandas over the `evaluations` table or `GET /api/evaluations` — there is no dedicated calibration endpoint yet.
+- [x] `enable-live` verified end-to-end (smoke-tested): full K1–K5 gate → typed `ENABLE LIVE <id> CONFIG <hash>` line → `LiveDisabledError` printed → `outcome_note: "live refused: bootstrap hard-disable"` appended to the chained log.
+- [x] Table names match the real DDL: `evaluations`, `dispositions` (and `realizations` holds realized P&L rows the daily stops read).

@@ -30,39 +30,67 @@ All-Python monolith. One process, one lockfile, no build step, no npm.
 - SQLite (WAL) via stdlib `sqlite3` — explicit SQL in the ledger module, **no ORM**
 - `httpx` / `websockets` — Kalshi (read-only), NWS, METAR
 - numpy / scipy / pandas — strategy math and calibration analysis
-- In-house `TickScheduler` (no APScheduler) — must be drivable by the backtest replay harness
-- `cryptography` — Kalshi request signing (scheme unverified, OD-19)
-- pytest — financial logic tested first
-- Entry points: `apacenye serve` and the out-of-band CLI (`apacenye kill | unkill | ack | enable-live | status`)
+- In-house `TickScheduler` (no APScheduler) — one emission path (`fire_due(now)`) drives live serving and replay identically
+- `cryptography` — Kalshi request signing (OD-19 VERIFIED 2026-07-18: RSA-PSS/SHA-256 over `timestamp_ms + METHOD + path`, headers `KALSHI-ACCESS-{KEY,TIMESTAMP,SIGNATURE}`)
+- pytest — financial logic tested first (98 tests at Stage 5 close)
+- Entry points: `apacenye serve` and the out-of-band CLI (`apacenye kill | unkill | ack | enable-live | status | backtest`)
 
-## Directory layout (PROVISIONAL — reconcile in Stage 5)
+## Directory layout (as built — Stage 5)
 
-No code exists yet; this is the Stage 3 §12 plan. Stage 5 must correct this section to match reality.
+Deviations from the Stage 3 §12 plan are marked ★ and justified in
+`docs/initial-bootstrap/handoffs/stage5-implementation-log.md`.
 
 ```
 apacenye/
-├── pyproject.toml  .env.example  .gitignore  CLAUDE.md
+├── pyproject.toml  uv.lock  .env.example  .gitignore  CLAUDE.md
 ├── config/                 # committed: risk.yaml, strategies/w1.yaml
 ├── secrets/                # gitignored; README.md only committed file
 ├── data/                   # gitignored runtime: apacenye.sqlite, capture/, acks/, KILL
+├── docs/strategies/        # per-strategy one-pagers (w1.md)
 ├── src/apacenye/
-│   ├── contract/           # Pydantic models: OrderIntent, CancelIntent, Heartbeat,
-│   │                       #   Evaluation, Disposition, ExplanationRecord — THE interface module
-│   ├── orchestrator/       # risk_engine.py (G0–G10), ledger.py, lifecycle.py, kill.py
-│   ├── execution/          # paper.py (fill simulator), kalshi.py (read-only), live.py (stub: raises)
-│   ├── marketdata/         # feed.py, snapshots.py, catalog.py (ticker→event), monitors.py (S1)
-│   ├── workers/            # base.py (lifecycle ABC), w1_forecast.py
-│   ├── dataadapters/       # nws.py, metar.py
-│   ├── service/            # api.py, ws.py, templates/, static/htmx.min.js
-│   ├── checkpoint/         # ack.py (paper/live gates), log verification
-│   ├── backtest/           # capture.py (writer), replay.py (harness)
-│   └── cli.py
-└── tests/
+│   ├── contract/           # models.py — THE interface module: OrderIntent (incl. OD-15
+│   │                       #   quote_seen), CancelIntent, Heartbeat, Evaluation, Disposition,
+│   │                       #   Fill, MarketSnapshot, Tick, ExplanationRecord, enums
+│   ├── domain/           ★ # pure financial math, tests-first: fees.py, sizing.py,
+│   │                       #   weather.py (W1 Gaussian), pnl.py
+│   ├── orchestrator/       # risk_engine.py (G0–G10 + reservations), ledger.py (all SQL),
+│   │                       #   kill.py (sentinel), orchestrator.py ★ (wiring + supervision;
+│   │                       #   there is no separate lifecycle.py)
+│   ├── execution/          # paper.py (fill simulator §6.1), kalshi.py (READ-ONLY client,
+│   │                       #   no order methods), live.py (LiveDisabledError stub)
+│   ├── marketdata/         # feed.py (poll loop), snapshots.py (cache), catalog.py
+│   │                       #   (ticker→event + bracket bounds; strict-tail semantics),
+│   │                       #   monitors.py (S1)
+│   ├── workers/            # base.py (lifecycle ABC + WorkerContext), w1_forecast.py
+│   ├── dataadapters/       # nws.py (+ capture hook), metar.py (W2 scaffold)
+│   ├── service/            # api.py (REST + WS + pages), ws.py ★ (WsHub), templates/,
+│   │                       #   static/htmx.min.js (1.9.12, vendored)
+│   ├── checkpoint/         # ack.py — K1–K5 gates, hash-chained AckLog, verify
+│   ├── backtest/           # capture.py (writer + read_day), replay.py (virtual-clock harness)
+│   ├── scheduler.py      ★ # TickScheduler (top-level, not a subpackage)
+│   ├── config.py           # AppSettings (.env, SecretStr, LIVE boot refusal), RiskConfig
+│   └── cli.py              # serve | kill | unkill | ack | enable-live | status | backtest
+└── tests/                  # 98 tests; financial logic written tests-first
 ```
 
-## Current state (PROVISIONAL — reconcile in Stage 5)
+## Current state (Stage 5 complete, 2026-07-19)
 
-**Docs-only.** Stages 1–3 produced the handoffs above; Stage 4 (this one) produced this file, `.gitignore`, and `.claude/skills/`. Session 5 implements the code. Every skill's file paths, commands, and interface names are written against the Stage 3 plan and carry a "Verify After Scaffolding" checklist that Stage 5 must run once real code exists — and Stage 5 must reconcile this section and the directory layout above at the same time. Master checklist: `docs/initial-bootstrap/handoffs/stage4-conventions-summary.md`.
+**Implemented and smoke-tested end-to-end** against live read-only data: `serve`
+boots in PAPER, resolves today's KXHIGHNY event, pulls the NWS forecast
+(grid OKX 34,45 for KNYC — verified), polls real order books, logs shadow
+forecasts, and serves the dashboard at `127.0.0.1:8642`. `RUN_MODE=LIVE`
+refuses to boot; `enable-live` runs the full K1–K5 gate and terminates at the
+recorded refusal; kill/unkill work with the server down; replay backtesting
+runs off `data/capture/` with the illustrative-only label attached at the
+source. Run: `uv sync && uv pip install -e . && uv run apacenye serve`.
+Tests: `uv run pytest`. Before a strategy will START, the owner must pass
+`apacenye ack --strategy W1 --gate paper` (smoke-test acks were deliberately
+deleted — the acknowledgment must be the owner's own).
+
+**Not yet done:** σ from the forecast-error archive (OD-11 — `sigma_f: 3.0`
+is a placeholder), W2/E1/S1-as-strategy (design-complete, build-blocked on
+their ODs), METAR capture wiring, and everything on the pre-live list in
+`stage5-implementation-log.md`.
 
 ## Coding standards
 

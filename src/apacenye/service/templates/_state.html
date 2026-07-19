@@ -1,0 +1,8 @@
+<p>
+  {% if killed %}<strong style="color:#e08787">KILLED</strong>{% else %}running{% endif %}
+  · mode {{ run_mode }} · equity ${{ '%.2f'|format(equity) }}
+</p>
+<button class="kill"
+        hx-post="/api/kill"
+        hx-confirm="Trip the kill switch? New opens will be rejected, resting orders cancelled, workers paused. Positions stay in place. Un-kill requires the CLI."
+        hx-swap="none">KILL</button>

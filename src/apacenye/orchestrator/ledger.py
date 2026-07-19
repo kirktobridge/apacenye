@@ -220,6 +220,12 @@ class Ledger:
                 "INSERT OR IGNORE INTO events (event_ticker) VALUES (?)", (event_ticker,)
             )
 
+    def market_status(self, ticker: str) -> str | None:
+        row = self._con.execute(
+            "SELECT status FROM markets WHERE ticker = ?", (ticker,)
+        ).fetchone()
+        return row["status"] if row else None
+
     def event_for_ticker(self, ticker: str) -> str | None:
         row = self._con.execute(
             "SELECT event_ticker FROM markets WHERE ticker = ?", (ticker,)
