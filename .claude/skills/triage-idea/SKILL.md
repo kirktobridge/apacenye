@@ -35,6 +35,14 @@ which may go directly to `dev-cycle`).
 5. **Write the entry** per the schema (next free `B-<n>` id) into the right
    section; keep **Now ≤ 3 items**. If Now is full, adding means demoting
    something — say which.
+   - **Plan linkage** (SCHEMAS.md): if the item is Bucket A (needs a plan
+     before coding — crosses 3+ files/layers, new abstraction, non-obvious
+     tradeoffs, silent-regression risk, or a design dependency), add a
+     `plan-required (Fable) — <what the plan resolves>` line. When a plan is
+     later written, swap that for `plan: docs/plans/<ID>-PLAN.md (<note>)` —
+     the filename MUST match the id. Bucket B items get neither.
+   - Run `uv run pytest tests/test_backlog_schema.py` before finishing; a
+     dangling or mis-named plan pointer fails it.
 6. **Rejections are answered, not filed**: tell the user why (which test
    failed), and don't add clutter to the backlog.
 

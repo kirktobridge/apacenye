@@ -48,7 +48,10 @@ This skill owns the outer loop either way.
    Co-Authored-By line if Claude-written.
 8. **Journal.** Append a DEV_LOG.md entry per schema (substantive changes
    only — a batch of trivial fixes can share one entry). Delete the shipped
-   item from BACKLOG.md in the same commit.
+   item from BACKLOG.md in the same commit. If it had a `plan:` pointer,
+   delete `docs/plans/<ID>-PLAN.md` too (the plan's job is done; the DEV_LOG
+   entry is the record) — leaving it orphaned fails
+   `tests/test_backlog_schema.py::test_no_orphan_plan_files`.
 
 ## Don'ts
 
