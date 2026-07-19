@@ -6,9 +6,6 @@ out via the `dev-cycle` skill (which deletes them here and records them in
 
 ## Now
 
-- **B-1 — Estimate σ from forecast-error archive** (research; M) — replaces W1's
-  `sigma_f: 3.0` placeholder with per-station/lead-time evidence (OD-11).
-  blocked-by: nothing (IEM archive availability is the first step of the work).
 - **B-2 — Owner ratification pass** (docs; S) — ratify OD-8/9/10/15/16/17/18 and
   D5-1…D5-14; sync any changed number into risk.yaml + CLAUDE.md same-commit.
   blocked-by: nothing (owner-attended session required).
@@ -41,6 +38,13 @@ out via the `dev-cycle` skill (which deletes them here and records them in
 - **B-11 — Dashboard signals view: htmx WebSocket extension** (platform; S) —
   replace 3 s polling on the signals feed; still zero hand-written JS.
   blocked-by: nothing (low value until evaluations flow daily).
+- **B-13 — Intraday σ curve for W1** (strategy; M) — σ that shrinks morning→
+  afternoon (lead-time-varying), replacing the single conservative 3.2°F
+  same-day scalar (B-1). Needs the true 0–18h signal error, which the IEM MOS
+  archive can't supply (too sparse intraday); source is our own shadow forecasts
+  (OD-9 calibration) or an NDFD gridpoint archive ETL. blocked-by: weeks of
+  shadow forecasts, OR an NDFD archive path. Requires weather.py + worker
+  signature change (σ by hours-to-settlement).
 
 ## Hardening-session only
 

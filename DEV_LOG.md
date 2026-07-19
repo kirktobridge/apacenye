@@ -26,3 +26,19 @@ docs/SCHEMAS.md; CLAUDE.md gained a Process section. Risk-config changes fold
 into dev-cycle as a branch rather than a ninth skill (anti-bloat call).
 Tests: 98 passed (docs-only change). Backlog: B-1…B-12 added. ODs: —.
 Ratification: — (backlog item B-2 tracks the pending pass).
+
+## 2026-07-19 — B-1: evidence-based W1 σ from forecast-error archive (strategy)
+Replaced W1's placeholder `sigma_f: 3.0` with an evidence-based 3.2°F (OD-11).
+Committed a reproducible offline study (`research/estimate_sigma_w1.py`): GFS
+extended MOS ("MEX") daytime-max forecasts from the IEM archive vs observed KNYC
+highs, σ = population std of the error at the shortest archived lead (≤48h) —
+raw 3.14, n=183, bias −0.64°F, rounded UP to 3.2 (conservative). σ rises
+monotonically with lead (3.1→6.9°F), which sanity-checks the method. Two archive
+gotchas documented in the script: IEM's csv.php ignores sts/ets (must iterate
+explicit `runtime=`), and n_x holds both max and min (max = the 00Z-valid row).
+Owner decision: a true INTRADAY σ curve isn't buildable from IEM MOS (too sparse
+sub-daily); deferred to shadow-forecast calibration (backlog B-13). Kept the
+scalar `sigma_f` so no worker-signature change. Note: `sigma_f` is W1 strategy
+config, not in the risk-relevant ack hash, so no paper ack was invalidated.
+Tests: 105 passed (+7 new for the study math). Backlog: B-1 closed, B-13 added.
+ODs: OD-11 resolved. Ratification: — (σ not in Always-Apply Rule 4's ratified set).

@@ -4,8 +4,8 @@ Thesis (Stage 2 §3.1): retail flow anchors on the point forecast ("the app
 says 86°"), but the correct object is a probability DISTRIBUTION over the
 day's high; brackets near the point forecast get overpriced and tails get
 mispriced. v0 models T_max ~ Normal(NWS forecast high, σ) with σ from the
-station's historical forecast error (config; default 3.0°F — a placeholder
-pending OD-11 archive work, stated honestly).
+station's historical forecast error (config `sigma_f`; 3.2°F, evidence-based
+from research/estimate_sigma_w1.py — OD-11 resolved 2026-07-19).
 
 CAPITAL AT RISK (paper): worst case per event is the 5% event cap ($50 at
 the $1,000 bankroll); worst case for the whole strategy is the 20% cap
@@ -98,7 +98,7 @@ class W1ForecastWorker(StrategyWorker):
         stale = forecast_age > staleness_s
 
         mu = self.forecast.high_f
-        sigma = float(self.config.get("sigma_f", 3.0))
+        sigma = float(self.config.get("sigma_f", 3.2))  # evidence-based default (OD-11)
         event_ticker = self.config["event_ticker"]
         brackets = self.ctx.list_event_brackets(event_ticker)
         if not brackets:
@@ -208,7 +208,7 @@ class W1ForecastWorker(StrategyWorker):
             confidence=confidence,
             key_inputs={
                 "nws_forecast_high_f": self.forecast.high_f,
-                "sigma_f": float(self.config.get("sigma_f", 3.0)),
+                "sigma_f": float(self.config.get("sigma_f", 3.2)),
                 "forecast_ts": self.forecast.source_ts.isoformat(),
                 "quote_ts": snap.ts.isoformat(),
             },

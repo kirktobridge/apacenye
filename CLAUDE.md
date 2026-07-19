@@ -70,7 +70,9 @@ apacenye/
 │   ├── scheduler.py      ★ # TickScheduler (top-level, not a subpackage)
 │   ├── config.py           # AppSettings (.env, SecretStr, LIVE boot refusal), RiskConfig
 │   └── cli.py              # serve | kill | unkill | ack | enable-live | status | backtest
-└── tests/                  # 98 tests; financial logic written tests-first
+├── research/             ★ # offline studies (NOT money-path): estimate_sigma_w1.py
+│                           #   (OD-11) + committed provenance sigma_w1_study.json
+└── tests/                  # 105 tests; financial logic written tests-first
 ```
 
 ## Current state (Stage 5 complete, 2026-07-19)
@@ -87,10 +89,12 @@ Tests: `uv run pytest`. Before a strategy will START, the owner must pass
 `apacenye ack --strategy W1 --gate paper` (smoke-test acks were deliberately
 deleted — the acknowledgment must be the owner's own).
 
-**Not yet done:** σ from the forecast-error archive (OD-11 — `sigma_f: 3.0`
-is a placeholder), W2/E1/S1-as-strategy (design-complete, build-blocked on
+**Not yet done:** W2/E1/S1-as-strategy (design-complete, build-blocked on
 their ODs), METAR capture wiring, and everything on the pre-live list in
-`stage5-implementation-log.md`.
+`stage5-implementation-log.md`. (OD-11 resolved 2026-07-19: `sigma_f` is now
+an evidence-based 3.2°F from a committed forecast-error study — see
+`research/estimate_sigma_w1.py`; intraday σ tightening is deferred to shadow
+calibration, backlog B-13.)
 
 ## Process
 

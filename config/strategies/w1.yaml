@@ -18,10 +18,16 @@ series_ticker: KXHIGHNY
 # event_ticker: KXHIGHNY-26JUL19
 
 # model
-sigma_f: 3.0            # PLACEHOLDER forecast-error std (°F): a typical
-                        # summer 1-day-ahead value; NOT yet estimated from the
-                        # station's archive (OD-11). Calibration data from
-                        # shadow forecasts is what will justify tuning this.
+sigma_f: 3.2            # Forecast-error std (°F), evidence-based (OD-11 resolved
+                        # 2026-07-19). Population std of (MEX GFS-MOS daytime-max
+                        # forecast − observed KNYC high) at the shortest archived
+                        # lead (≤48h): raw 3.14, n=183, bias −0.64°F; rounded UP to
+                        # 3.2 (conservative). Study + provenance:
+                        # research/estimate_sigma_w1.py → research/sigma_w1_study.json.
+                        # This is a slightly conservative UPPER BOUND for the same-day
+                        # (intraday) horizon — MEX's shortest max lead is ~36h. Intraday
+                        # tightening below this is deferred to live shadow-forecast
+                        # calibration (OD-9), the sanctioned path for tuning σ.
 
 # cadence & freshness
 cadence_s: 600            # evaluate every 10 minutes on platform ticks
