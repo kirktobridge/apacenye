@@ -49,6 +49,14 @@ class AppSettings(BaseSettings):
 
     data_dir: Path = Path("data")
 
+    # Backups (B-5): out-of-tree snapshots of the ledger + capture tree. The
+    # default lives OUTSIDE the working tree so a data/ wipe cannot take the
+    # backups with it. interval_s <= 0 disables the periodic loop in serve;
+    # manual `apacenye backup` always works. B-15 points BACKUP_DIR off-box.
+    backup_dir: Path = Path.home() / "apacenye-backups"
+    backup_interval_s: float = 3600.0   # hourly
+    backup_retention: int = 24          # rolling ~24h of snapshots
+
     @field_validator("run_mode")
     @classmethod
     def _refuse_live(cls, v: RunMode) -> RunMode:

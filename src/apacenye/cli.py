@@ -14,6 +14,7 @@ Commands:
   apacenye status                         kill state, equity, positions, heartbeats
   apacenye backtest --strategy W1 --from 2026-07-18 --to 2026-07-20
   apacenye calibration --strategy W1 [--since D --until D] [--json] [--backfill-settlements]
+  apacenye backup                         one out-of-tree ledger+capture snapshot
 """
 
 from __future__ import annotations
@@ -65,6 +66,8 @@ def _build_parser() -> argparse.ArgumentParser:
     c.add_argument("--backfill-settlements", action="store_true",
                    help="mark positionless evaluated markets settled from the "
                         "read-only Kalshi API before reporting (network access)")
+
+    sub.add_parser("backup", help="write one out-of-tree ledger+capture snapshot")
     return p
 
 
@@ -81,6 +84,7 @@ def main(argv: list[str] | None = None) -> int:
         "status": cmd_status,
         "backtest": cmd_backtest,
         "calibration": cmd_calibration,
+        "backup": cmd_backup,
     }[args.command](args)
 
 
@@ -437,6 +441,27 @@ def _calibration_json(db_path, since, until, cov, r) -> dict:
     }
 
 
+# -------------------------------------------------------------------- backup
+
+
+def cmd_backup(args) -> int:
+    """Write one out-of-tree snapshot of the ledger + capture tree (B-5).
+    Works alongside a running serve (SQLite online backup) or with it down."""
+    from apacenye.backup import create_backup, prune_backups
+    from apacenye.config import AppSettings
+
+    settings = AppSettings()
+    dest = create_backup(settings.db_path, settings.capture_dir, settings.backup_dir)
+    print(f"backup written: {dest}")
+    print(f"  ledger : {'included' if Path(settings.db_path).exists() else 'no db yet'}")
+    print(f"  capture: {'included' if Path(settings.capture_dir).exists() else 'none yet'}")
+    removed = prune_backups(settings.backup_dir, settings.backup_retention)
+    if removed:
+        print(f"  pruned {len(removed)} old snapshot(s) beyond "
+              f"retention={settings.backup_retention}")
+    return 0
+
+
 # --------------------------------------------------------------------- serve
 
 
@@ -534,6 +559,20 @@ async def _serve(settings, risk) -> None:
         print(f"W1 failed to initialize ({exc}); registered but stopped. "
               "Fix data access and resume from the dashboard.")
 
+    # Periodic out-of-tree backups (B-5). Tied to orchestrator liveness so it
+    # winds down with the rest on shutdown; interval_s <= 0 disables it.
+    from apacenye.backup import backup_loop
+    backup_tasks = []
+    if settings.backup_interval_s > 0:
+        backup_tasks.append(backup_loop(
+            settings.db_path, settings.capture_dir, settings.backup_dir,
+            interval_s=settings.backup_interval_s,
+            retention=settings.backup_retention,
+            should_continue=lambda: orch._running,
+        ))
+        print(f"backups: every {settings.backup_interval_s:.0f}s → "
+              f"{settings.backup_dir} (keep {settings.backup_retention})")
+
     app = create_app(orch, ws_hub)
     server = uvicorn.Server(uvicorn.Config(
         app, host=settings.dashboard_host, port=settings.dashboard_port,
@@ -550,6 +589,7 @@ async def _serve(settings, risk) -> None:
         feed.run(),
         metar.run_capture(),
         server.serve(),
+        *backup_tasks,
     )
 
 

@@ -10,9 +10,7 @@ _(nothing committed as next work)_
 
 ## Next
 
-- **B-5 — Ledger/capture backup routine** (ops; S) — periodic copy of
-  data/apacenye.sqlite + capture/ out of the working tree.
-  blocked-by: nothing.
+_(nothing committed as next work)_
 
 ## Later / blocked
 

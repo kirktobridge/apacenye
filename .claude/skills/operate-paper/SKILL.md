@@ -55,7 +55,9 @@ Paper P&L is an optimistic bound; treat it as a sanity signal only.
 
 - Kill-switch drill (server up): `apacenye kill "drill"` → confirm workers
   pause and resting orders cancel → `unkill` → resume. Log it.
-- Back up `data/apacenye.sqlite` + `data/capture/` (see B-5 until automated).
+- Backups run automatically inside `serve` (hourly → `~/apacenye-backups`,
+  B-5); confirm recent snapshots exist. Off `serve`, or for an ad-hoc snapshot,
+  run `apacenye backup`. Point `BACKUP_DIR` off-box once B-15 lands.
 - `apacenye ack --verify-log` — chain intact.
 - Skim disposition stats for the week; anything systematic goes to
   `triage-idea` as an ops/research item.

@@ -33,7 +33,7 @@ All-Python monolith. One process, one lockfile, no build step, no npm.
 - In-house `TickScheduler` (no APScheduler) — one emission path (`fire_due(now)`) drives live serving and replay identically
 - `cryptography` — Kalshi request signing (OD-19 VERIFIED 2026-07-18: RSA-PSS/SHA-256 over `timestamp_ms + METHOD + path`, headers `KALSHI-ACCESS-{KEY,TIMESTAMP,SIGNATURE}`)
 - pytest — financial logic tested first (98 tests at Stage 5 close)
-- Entry points: `apacenye serve` and the out-of-band CLI (`apacenye kill | unkill | ack | enable-live | status | backtest | calibration`)
+- Entry points: `apacenye serve` and the out-of-band CLI (`apacenye kill | unkill | ack | enable-live | status | backtest | calibration | backup`)
 
 ## Directory layout (as built — Stage 5)
 
@@ -70,12 +70,14 @@ apacenye/
 │   ├── checkpoint/         # ack.py — K1–K5 gates, hash-chained AckLog, verify
 │   ├── backtest/           # capture.py (writer + read_day), replay.py (virtual-clock harness)
 │   ├── scheduler.py      ★ # TickScheduler (top-level, not a subpackage)
+│   ├── backup.py         ★ # out-of-tree ledger+capture snapshots (B-5): SQLite
+│   │                       #   online backup + capture copy, retention, serve loop
 │   ├── config.py           # AppSettings (.env, SecretStr, LIVE boot refusal), RiskConfig
 │   └── cli.py              # serve | kill | unkill | ack | enable-live | status
-│                           #   | backtest | calibration (shadow-forecast report, B-4)
+│                           #   | backtest | calibration (B-4) | backup (B-5)
 ├── research/             ★ # offline studies (NOT money-path): estimate_sigma_w1.py
 │                           #   (OD-11) + committed provenance sigma_w1_study.json
-└── tests/                  # 160 tests; financial logic written tests-first
+└── tests/                  # 162 tests; financial logic written tests-first
                             #   (+ tests/golden/ for rendered-report golden files)
 ```
 

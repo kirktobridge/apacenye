@@ -103,3 +103,23 @@ Tests: 160 passed (+55 since B-3; new: test_calibration.py incl. golden-file +
 backfill, ledger calibration reads, replay Brier pin). Backlog: B-4 closed,
 B4-PLAN.md deleted; B-9/B-13 references de-dangled. ODs: — (feeds OD-9 evidence
 loop). Ratification: — (no risk-relevant value changed).
+
+## 2026-07-20 — B-5: ledger + capture backup routine (ops)
+`apacenye backup` and a serve-side hourly loop take out-of-tree snapshots of the
+SQLite ledger + `data/capture/` into `~/apacenye-backups` (BACKUP_DIR), keeping
+the newest BACKUP_RETENTION (24). The ledger is copied with SQLite's ONLINE
+backup API — not `cp` — so it stays transactionally consistent while serve holds
+the db open in WAL, and the copy is converted out of WAL (`journal_mode=DELETE`)
+so each snapshot is one standalone restorable file, no -wal/-shm sidecar to lose.
+Each run writes one self-contained dir (`apacenye.sqlite` + `capture/`) so any
+single directory restores wholesale; full (not incremental) snapshots are a
+deliberate size-S simplicity choice, bounded by retention. The loop follows the
+capture rule — a failed backup logs and continues, never taking down trading —
+and is tied to orchestrator liveness (interval_s <= 0 disables it). Not
+risk-relevant: no risk.yaml or rule-4 change, no ack invalidation. B-15 will
+repoint BACKUP_DIR off-box. Verified: full suite green; `apacenye backup`
+exercised for real (snapshot written, capture copied, retention prune to 1
+confirmed) and LIVE still refuses to boot.
+Tests: 162 passed (+6 new: online-backup consistency under an open WAL db,
+no-db/no-capture, retention keep-newest-N + retention-0, loop-survives-failure,
+loop-writes-then-prunes). Backlog: B-5 closed. ODs: —. Ratification: —.
