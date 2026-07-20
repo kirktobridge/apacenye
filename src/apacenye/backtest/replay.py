@@ -24,6 +24,7 @@ from apacenye.backtest.capture import CaptureWriter
 from apacenye.config import AppSettings, RiskConfig
 from apacenye.contract import MarketSnapshot, RunMode, Side
 from apacenye.dataadapters.nws import ForecastHigh
+from apacenye.domain.calibration import brier_score
 from apacenye.marketdata.catalog import MarketCatalog, MarketInfo
 from apacenye.orchestrator.kill import KillSwitch
 from apacenye.orchestrator.ledger import Ledger
@@ -201,13 +202,17 @@ async def run_replay(
 
     # Calibration before P&L (run-backtest skill, step 4): join shadow
     # forecasts to settled outcomes; benchmark = the market mid's own Brier.
+    # Both Briers use the ONE shared implementation (domain/calibration) so
+    # replay and the `apacenye calibration` report can never drift apart.
     evals = ledger.recent_evaluations(strategy_id, limit=100000)
     scored = [(e["model_probability"], e["market_implied_probability"],
                1.0 if settled[e["market_ticker"]] == "yes" else 0.0)
               for e in evals
               if e["market_ticker"] in settled and e["market_implied_probability"] is not None]
-    brier_model = (sum((p - o) ** 2 for p, _, o in scored) / len(scored)) if scored else None
-    brier_market = (sum((m - o) ** 2 for _, m, o in scored) / len(scored)) if scored else None
+    brier_model = brier_score([p for p, _, _ in scored],
+                              [o for _, _, o in scored]) if scored else None
+    brier_market = brier_score([m for _, m, _ in scored],
+                               [o for _, _, o in scored]) if scored else None
 
     result = {
         "label": ILLUSTRATIVE_LABEL,

@@ -61,6 +61,18 @@ async def test_replay_round_trip(tmp_path):
     assert 0.5 < 1 - result["brier_model"] ** 0.5 < 0.7
 
 
+async def test_replay_brier_output_is_pinned(tmp_path):
+    # Guards the refactor of replay's inline Brier onto domain/calibration:
+    # these exact numbers on the fixed tape must not drift.
+    capture_dir = tmp_path / "capture"
+    write_capture(capture_dir)
+    result = await run_replay(W1_CONFIG, RiskConfig(), capture_dir,
+                              DAY, DAY, tmp_path / "work")
+    assert result["scored_samples"] == 6
+    assert result["brier_model"] == pytest.approx(0.1851)
+    assert result["brier_market"] == pytest.approx(0.2809)
+
+
 async def test_replay_reports_coverage_gaps(tmp_path):
     capture_dir = tmp_path / "capture"
     write_capture(capture_dir)

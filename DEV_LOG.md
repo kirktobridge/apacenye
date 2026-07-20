@@ -76,3 +76,30 @@ sizing, or ack surface changed; safety invariants untouched.
 Tests: 109 passed (+4 new: capture-write, no-capture, loud-failure, loop-survives-miss).
 Backlog: B-3 closed; B-6 blocker note updated. ODs: — (feeds OD-12, unresolved).
 Ratification: — (no risk-relevant value changed).
+
+## 2026-07-20 — B-4: calibration report tooling (platform)
+`apacenye calibration --strategy W1 [--since --until --json --backfill-settlements]`
+turns the review-calibration skill's steps 2–6 into one audited computation:
+provenance/coverage header, sample-size gate (< 100 scoreable rows ⇒ hard
+INSUFFICIENT-DATA), Brier model-vs-market on the identical non-null-mid row
+set, a p_model decile reliability table, the qualified/traded subset check
+with an adverse-selection warning, and a mechanical verdict — all off pure
+`domain/calibration.py`. The replay harness's inline Brier now calls the SAME
+`brier_score` (a pin test locks its output at 0.1851/0.2809 so the extraction
+is behavior-identical), so replay and the report can never drift. SQL stayed
+in the ledger (`settled_evaluations`, `evaluation_coverage`,
+`unsettled_evaluated_markets`, `market_has_open_position`, mark-only
+`mark_market_settled`). D5 precondition verified: the W1 worker always logs
+`model_probability`/`market_implied_probability` as P(YES) of the ticker (the
+side-relative `p_win` drives the trade decision only, never the shadow log) —
+no corruption to fix. D4 backfill marks ONLY positionless markets settled from
+the read-only Kalshi API; markets with open positions are listed for attention,
+never realized here (realization stays on serve's on_settlement path). The tool
+reports only — it never recommends λ/k/σ (OD-9). Not risk-relevant: no
+risk.yaml or rule-4 change, no ack invalidation. Verified: full suite green,
+CLI exercised against a seeded ledger (text/json/windowing) then the throwaway
+ledger removed.
+Tests: 160 passed (+55 since B-3; new: test_calibration.py incl. golden-file +
+backfill, ledger calibration reads, replay Brier pin). Backlog: B-4 closed,
+B4-PLAN.md deleted; B-9/B-13 references de-dangled. ODs: — (feeds OD-9 evidence
+loop). Ratification: — (no risk-relevant value changed).

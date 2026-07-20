@@ -13,6 +13,7 @@ Commands:
   apacenye enable-live --strategy W1      full live gate → always refused (bootstrap)
   apacenye status                         kill state, equity, positions, heartbeats
   apacenye backtest --strategy W1 --from 2026-07-18 --to 2026-07-20
+  apacenye calibration --strategy W1 [--since D --until D] [--json] [--backfill-settlements]
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ import json
 import logging
 import sqlite3
 import sys
+from dataclasses import asdict
 from pathlib import Path
 
 log = logging.getLogger("apacenye")
@@ -54,6 +56,15 @@ def _build_parser() -> argparse.ArgumentParser:
     b.add_argument("--strategy", default="W1")
     b.add_argument("--from", dest="from_day", required=True)
     b.add_argument("--to", dest="to_day", required=True)
+
+    c = sub.add_parser("calibration", help="shadow-forecast calibration report (read-only)")
+    c.add_argument("--strategy", default="W1")
+    c.add_argument("--since", default=None, help="inclusive start date YYYY-MM-DD (UTC)")
+    c.add_argument("--until", default=None, help="inclusive end date YYYY-MM-DD (UTC)")
+    c.add_argument("--json", action="store_true", help="machine-readable output")
+    c.add_argument("--backfill-settlements", action="store_true",
+                   help="mark positionless evaluated markets settled from the "
+                        "read-only Kalshi API before reporting (network access)")
     return p
 
 
@@ -69,6 +80,7 @@ def main(argv: list[str] | None = None) -> int:
         "enable-live": cmd_enable_live,
         "status": cmd_status,
         "backtest": cmd_backtest,
+        "calibration": cmd_calibration,
     }[args.command](args)
 
 
@@ -242,6 +254,187 @@ def cmd_backtest(args) -> int:
         print(f"calibration: {better} had the lower (better) Brier score on this window")
     print("Reminder: calibration before P&L; good P&L on a handful of samples is noise.")
     return 0
+
+
+# ----------------------------------------------------------------- calibration
+
+
+def cmd_calibration(args) -> int:
+    """Owner-readable shadow-forecast calibration report (review-calibration
+    skill, steps 2–6) — Brier vs. the market benchmark, a reliability decile
+    table, the qualified/traded subset check, and a mechanical verdict.
+
+    Read-only against the ledger (safe alongside a running server; WAL). This
+    tool REPORTS only — it never recommends λ/k/σ (OD-9). With
+    --backfill-settlements it first marks positionless evaluated markets
+    settled from the read-only Kalshi API so late outcomes become scoreable.
+    """
+    from apacenye.config import AppSettings, load_risk_config
+    from apacenye.domain.calibration import ScoredEval, build_report
+    from apacenye.orchestrator.ledger import Ledger
+
+    settings = AppSettings()
+    if not Path(settings.db_path).exists():
+        print("no ledger yet — nothing to calibrate (server never ran)")
+        return 0
+    risk = load_risk_config()
+    ledger = Ledger(settings.db_path, risk.bankroll_usd)
+    try:
+        if args.backfill_settlements:
+            asyncio.run(_backfill_settlements(settings, ledger, args.strategy))
+        cov = ledger.evaluation_coverage(args.strategy)
+        rows = ledger.settled_evaluations(args.strategy, args.since, args.until)
+        scored = [ScoredEval(
+            model_probability=r["model_probability"],
+            market_implied_probability=r["market_implied_probability"],
+            outcome=r["outcome"], qualified=bool(r["qualified"]),
+            traded=r["intent_id"] is not None, event_ticker=r["event_ticker"],
+        ) for r in rows]
+        report = build_report(args.strategy, scored)
+        if args.json:
+            print(json.dumps(
+                _calibration_json(str(settings.db_path), args.since, args.until, cov, report),
+                indent=2))
+        else:
+            print(_calibration_text(str(settings.db_path), args.since, args.until, cov, report))
+    finally:
+        ledger.close()
+    return 0
+
+
+async def _backfill_settlements(settings, ledger, strategy_id: str) -> None:
+    """Mark positionless evaluated markets settled from the read-only Kalshi
+    API (D4). Markets with OPEN positions that appear settled venue-side are
+    LISTED for attention, never marked here — position realization stays on
+    the server's on_settlement path."""
+    from apacenye.contract import Side
+    from apacenye.execution.kalshi import KalshiClient
+
+    pending = ledger.unsettled_evaluated_markets(strategy_id)
+    if not pending:
+        print("backfill: no unsettled evaluated markets — nothing to do")
+        return
+    kalshi = KalshiClient(
+        api_key_id=settings.kalshi_api_key_id.get_secret_value(),
+        private_key_path=settings.kalshi_private_key_path,
+        env=settings.kalshi_env,
+    )
+    marked = 0
+    still_open = 0
+    needs_attention: list[tuple[str, str]] = []
+    try:
+        for m in pending:
+            ticker = m["market_ticker"]
+            try:
+                data = await kalshi.get_market(ticker)
+            except Exception as exc:  # a single bad ticker must not abort the run
+                print(f"  {ticker}: venue query failed ({exc})")
+                continue
+            result = (data.get("market", {}).get("result") or "").lower()
+            if result not in ("yes", "no"):
+                still_open += 1  # not settled venue-side yet — leave it open
+                continue
+            if ledger.market_has_open_position(ticker):
+                needs_attention.append((ticker, result))
+                continue
+            if ledger.mark_market_settled(
+                ticker, Side.YES if result == "yes" else Side.NO):
+                marked += 1
+    finally:
+        await kalshi.close()
+    print(f"backfill: marked {marked} positionless market(s) settled; "
+          f"{still_open} still open venue-side")
+    for ticker, result in needs_attention:
+        print(f"  ATTENTION: {ticker} settled '{result}' venue-side but has OPEN "
+              "positions — resolve via a running serve (on_settlement realizes "
+              "positions and cancels resting orders); NOT marked here")
+
+
+def _fmt(x: float | None) -> str:
+    return "n/a" if x is None else f"{x:.4f}"
+
+
+def _calibration_text(db_path, since, until, cov, r) -> str:
+    """Render the report as plain text — the sections the review-calibration
+    skill quotes into DEV_LOG, in order."""
+    from apacenye.domain.calibration import CALIBRATION_BIAS_THRESHOLD, INSUFFICIENT_DATA_ROWS
+
+    bar = "=" * 72
+    out = [bar,
+           f"CALIBRATION REPORT — strategy {r.strategy_id}  (PAPER shadow forecasts)",
+           bar,
+           f"ledger: {db_path}",
+           f"window: {since or 'start'} … {until or 'now'}  (UTC evaluation dates, inclusive)",
+           f"coverage (lifetime): {cov['total']} evaluations — {cov['settled']} settled/scoreable, "
+           f"{cov['unsettled']} still open, {cov['settled_null_mid']} settled dropped for no "
+           "two-sided quote"]
+    if cov["unsettled"]:
+        out.append(f"  NOTE: {cov['unsettled']} evaluated market(s) still 'open' in the ledger — "
+                   "if settled while serve was down, run --backfill-settlements to score them.")
+    out += ["",
+            f"[sample] scoreable rows in window: {r.n_scored}   distinct events (effective n): "
+            f"{r.n_events}   null-mid dropped in window: {r.n_excluded_null_mid}"]
+    if r.insufficient_data:
+        out.append(f"  INSUFFICIENT-DATA (< {INSUFFICIENT_DATA_ROWS} rows): the metrics below are "
+                   "directionally interesting, evidentially nothing.")
+    out += ["",
+            "[brier] mean (p − outcome)², lower is better; the market mid is the benchmark to beat",
+            f"  model : {_fmt(r.brier_model)}",
+            f"  market: {_fmt(r.brier_market)}"]
+    if r.brier_model is not None and r.brier_market is not None:
+        rel = ("beats" if r.brier_model < r.brier_market
+               else "ties" if r.brier_model == r.brier_market else "LOSES to")
+        out.append(f"  -> model {rel} the market benchmark")
+    out += ["",
+            "[reliability] p_model deciles — calibrated when observed ≈ mean_pred",
+            "  bucket       n    mean_pred  observed   gap"]
+    for b in r.reliability:
+        if b.n == 0:
+            out.append(f"  {b.lo:.1f}-{b.hi:.1f}      0        —         —        —")
+        else:
+            out.append(f"  {b.lo:.1f}-{b.hi:.1f}  {b.n:5d}    {b.mean_pred:7.3f}   "
+                       f"{b.observed_freq:7.3f}  {b.gap:+.3f}")
+    if r.weighted_gap is not None:
+        out.append(f"  aggregate gap (observed − predicted): {r.weighted_gap:+.3f}   "
+                   f"(|gap| > {CALIBRATION_BIAS_THRESHOLD} is flagged)")
+        out.append("  note: tail over-confidence (extreme buckets drifting toward 0.5) is W1-v0's "
+                   "expected failure mode — watch the 0.0-0.1 and 0.9-1.0 rows.")
+    out += ["",
+            "[selection] does the qualification rule pick BETTER spots than it skips?"]
+    for s in (r.qualified, r.traded, r.untraded):
+        out.append(f"  {s.label:9s} n={s.n_rows:4d} events={s.n_events:3d}   "
+                   f"brier_model={_fmt(s.brier_model)}   brier_market={_fmt(s.brier_market)}")
+    if r.adverse_selection:
+        out.append("  ADVERSE-SELECTION WARNING: the TRADED subset scores WORSE than the untraded "
+                   "— the qualification rule is selecting bad spots.")
+    out += ["",
+            f"VERDICT: {r.verdict}",
+            f"  (rule: < {INSUFFICIENT_DATA_ROWS} rows ⇒ insufficient-data; model Brier > market "
+            f"⇒ loses-to-market; |aggregate gap| > {CALIBRATION_BIAS_THRESHOLD} ⇒ "
+            "over/under-forecasting; else calibrated)",
+            "",
+            "Reports only. λ/k/σ changes go through review-calibration → owner ratification → "
+            "dev-cycle (OD-9); never tuned here."]
+    return "\n".join(out)
+
+
+def _calibration_json(db_path, since, until, cov, r) -> dict:
+    return {
+        "strategy_id": r.strategy_id,
+        "provenance": {"ledger": db_path, "mode": "PAPER shadow forecasts",
+                       "since": since, "until": until},
+        "coverage": cov,
+        "sample": {"scoreable_rows": r.n_scored, "distinct_events": r.n_events,
+                   "null_mid_dropped_in_window": r.n_excluded_null_mid,
+                   "insufficient_data": r.insufficient_data},
+        "brier": {"model": r.brier_model, "market": r.brier_market},
+        "weighted_gap": r.weighted_gap,
+        "reliability": [asdict(b) for b in r.reliability],
+        "subsets": {"qualified": asdict(r.qualified), "traded": asdict(r.traded),
+                    "untraded": asdict(r.untraded)},
+        "adverse_selection": r.adverse_selection,
+        "verdict": r.verdict,
+    }
 
 
 # --------------------------------------------------------------------- serve

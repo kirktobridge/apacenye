@@ -572,6 +572,106 @@ class Ledger:
         args.append(limit)
         return [dict(r) for r in self._con.execute(sql, args).fetchall()]
 
+    # ------------------------------------------------------- calibration reads
+
+    def settled_evaluations(
+        self, strategy_id: str, since: str | None = None, until: str | None = None
+    ) -> list[dict]:
+        """Shadow forecasts on markets that have SETTLED, joined to their
+        outcome — the scoreable calibration set (review-calibration step 1).
+
+        `since`/`until` are inclusive YYYY-MM-DD dates compared against the
+        UTC date of each evaluation. Each row carries `outcome` = 1.0 if the
+        market settled YES else 0.0. Unsettled markets are excluded (they have
+        no outcome yet); the caller reports their count separately.
+        """
+        sql = (
+            "SELECT e.evaluation_id, e.strategy_id, e.ts, e.market_ticker, "
+            "e.event_ticker, e.model_probability, e.market_implied_probability, "
+            "e.executable_price_dollars, e.net_edge, e.qualified, e.intent_id, "
+            "m.settled_side "
+            "FROM evaluations e JOIN markets m ON m.ticker = e.market_ticker "
+            "WHERE m.status = 'settled' AND e.strategy_id = ? "
+        )
+        args: list = [strategy_id]
+        if since:
+            sql += "AND date(e.ts) >= ? "
+            args.append(since)
+        if until:
+            sql += "AND date(e.ts) <= ? "
+            args.append(until)
+        sql += "ORDER BY e.ts"
+        rows = []
+        for r in self._con.execute(sql, args).fetchall():
+            d = dict(r)
+            d["outcome"] = 1.0 if r["settled_side"] == "yes" else 0.0
+            rows.append(d)
+        return rows
+
+    def evaluation_coverage(self, strategy_id: str) -> dict:
+        """Counts for the report's honesty header: how many evaluations exist,
+        how many are scoreable (settled), how many are still open, how many
+        settled rows were dropped for having no two-sided quote (null mid),
+        and the distinct-event count (the effective sample size)."""
+        row = self._con.execute(
+            "SELECT COUNT(*) AS total, "
+            "COALESCE(SUM(CASE WHEN m.status='settled' THEN 1 ELSE 0 END), 0) AS settled, "
+            "COALESCE(SUM(CASE WHEN m.status='settled' AND "
+            "e.market_implied_probability IS NULL THEN 1 ELSE 0 END), 0) AS settled_null_mid, "
+            "COUNT(DISTINCT e.event_ticker) AS distinct_events "
+            "FROM evaluations e LEFT JOIN markets m ON m.ticker = e.market_ticker "
+            "WHERE e.strategy_id = ?",
+            (strategy_id,),
+        ).fetchone()
+        total = int(row["total"])
+        settled = int(row["settled"])
+        return {
+            "total": total,
+            "settled": settled,
+            "unsettled": total - settled,
+            "settled_null_mid": int(row["settled_null_mid"]),
+            "distinct_events": int(row["distinct_events"]),
+        }
+
+    def unsettled_evaluated_markets(self, strategy_id: str) -> list[dict]:
+        """Markets this strategy has evaluated that are NOT yet settled in the
+        ledger — the backfill candidates (a market that settled while `serve`
+        was down stays 'open' here forever otherwise)."""
+        rows = self._con.execute(
+            "SELECT DISTINCT e.market_ticker, e.event_ticker "
+            "FROM evaluations e LEFT JOIN markets m ON m.ticker = e.market_ticker "
+            "WHERE e.strategy_id = ? AND (m.status IS NULL OR m.status != 'settled') "
+            "ORDER BY e.market_ticker",
+            (strategy_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def market_has_open_position(self, ticker: str) -> bool:
+        row = self._con.execute(
+            "SELECT 1 FROM positions WHERE market_ticker = ? AND status='open' LIMIT 1",
+            (ticker,),
+        ).fetchone()
+        return row is not None
+
+    def mark_market_settled(
+        self, ticker: str, settled_side: Side, ts: datetime | None = None
+    ) -> bool:
+        """Record a market's settlement outcome for CALIBRATION BOOKKEEPING
+        ONLY. Unlike `settle_market` this does NOT realize positions or move
+        cash — the caller must confirm no open positions exist first (position
+        realization stays on the server's on_settlement path). No-op returning
+        False if the market is already settled."""
+        from apacenye.contract import utcnow
+
+        ts = ts or utcnow()
+        with self._con:
+            cur = self._con.execute(
+                "UPDATE markets SET status='settled', settled_side=?, settled_ts=? "
+                "WHERE ticker=? AND status != 'settled'",
+                (settled_side.value, _iso(ts), ticker),
+            )
+        return cur.rowcount > 0
+
     def latest_heartbeat(self, strategy_id: str) -> dict | None:
         row = self._con.execute(
             "SELECT * FROM heartbeats WHERE strategy_id=? ORDER BY heartbeat_id DESC LIMIT 1",

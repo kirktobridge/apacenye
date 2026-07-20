@@ -11,12 +11,21 @@ paper P&L is an optimistic bound and says almost nothing at small n; the
 sizing hyperparameters (λ = 0.5, k = 0.25) and W1's σ move **only** on the
 evidence this review produces, ratified by the owner (OD-9).
 
+## The tool
+
+`apacenye calibration --strategy W1 [--since D --until D] [--json]` computes
+steps 2–6 below off ONE audited computation (`domain/calibration.py`, the same
+Brier the replay harness uses) — run it instead of ad-hoc queries. It reports
+only; it never recommends λ/k/σ (step 7 stays a human call). If markets settled
+while `serve` was down they sit `open` and unscoreable; `--backfill-settlements`
+marks the positionless ones from the read-only Kalshi API first.
+
 ## Steps
 
-1. **Pull the data**: `evaluations` table (or `GET /api/evaluations?strategy=`),
-   joined to settled outcomes via `markets.settled_side`. Only evaluations on
-   markets that have SETTLED count; drop the rest. For replay windows the
-   backtest CLI computes the same join.
+1. **Pull the data**: normally just run the tool above. Under the hood it is the
+   `evaluations` table (or `GET /api/evaluations?strategy=`) joined to settled
+   outcomes via `markets.settled_side`; only evaluations on markets that have
+   SETTLED count. For replay windows the backtest CLI computes the same join.
 2. **State the sample size first**, and refuse conclusions it can't carry:
    under ~100 settled samples, report "insufficient data" and stop —
    directionally interesting, evidentially nothing. Note that same-event

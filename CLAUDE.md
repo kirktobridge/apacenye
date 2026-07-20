@@ -33,7 +33,7 @@ All-Python monolith. One process, one lockfile, no build step, no npm.
 - In-house `TickScheduler` (no APScheduler) — one emission path (`fire_due(now)`) drives live serving and replay identically
 - `cryptography` — Kalshi request signing (OD-19 VERIFIED 2026-07-18: RSA-PSS/SHA-256 over `timestamp_ms + METHOD + path`, headers `KALSHI-ACCESS-{KEY,TIMESTAMP,SIGNATURE}`)
 - pytest — financial logic tested first (98 tests at Stage 5 close)
-- Entry points: `apacenye serve` and the out-of-band CLI (`apacenye kill | unkill | ack | enable-live | status | backtest`)
+- Entry points: `apacenye serve` and the out-of-band CLI (`apacenye kill | unkill | ack | enable-live | status | backtest | calibration`)
 
 ## Directory layout (as built — Stage 5)
 
@@ -52,7 +52,8 @@ apacenye/
 │   │                       #   quote_seen), CancelIntent, Heartbeat, Evaluation, Disposition,
 │   │                       #   Fill, MarketSnapshot, Tick, ExplanationRecord, enums
 │   ├── domain/           ★ # pure financial math, tests-first: fees.py, sizing.py,
-│   │                       #   weather.py (W1 Gaussian), pnl.py
+│   │                       #   weather.py (W1 Gaussian), pnl.py, calibration.py
+│   │                       #   (Brier/reliability; shared by replay + report — B-4)
 │   ├── orchestrator/       # risk_engine.py (G0–G10 + reservations), ledger.py (all SQL),
 │   │                       #   kill.py (sentinel), orchestrator.py ★ (wiring + supervision;
 │   │                       #   there is no separate lifecycle.py)
@@ -70,10 +71,12 @@ apacenye/
 │   ├── backtest/           # capture.py (writer + read_day), replay.py (virtual-clock harness)
 │   ├── scheduler.py      ★ # TickScheduler (top-level, not a subpackage)
 │   ├── config.py           # AppSettings (.env, SecretStr, LIVE boot refusal), RiskConfig
-│   └── cli.py              # serve | kill | unkill | ack | enable-live | status | backtest
+│   └── cli.py              # serve | kill | unkill | ack | enable-live | status
+│                           #   | backtest | calibration (shadow-forecast report, B-4)
 ├── research/             ★ # offline studies (NOT money-path): estimate_sigma_w1.py
 │                           #   (OD-11) + committed provenance sigma_w1_study.json
-└── tests/                  # 105 tests; financial logic written tests-first
+└── tests/                  # 160 tests; financial logic written tests-first
+                            #   (+ tests/golden/ for rendered-report golden files)
 ```
 
 ## Current state (Stage 5 complete, 2026-07-19)

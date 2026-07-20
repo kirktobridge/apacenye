@@ -10,10 +10,6 @@ _(nothing committed as next work)_
 
 ## Next
 
-- **B-4 — Calibration report tooling** (platform; M) — reliability curve +
-  Brier summary from the evaluations table (feeds review-calibration skill).
-  blocked-by: enough shadow-forecast samples to be worth plotting (~weeks).
-  plan: docs/plans/B4-PLAN.md (written 2026-07-19).
 - **B-5 — Ledger/capture backup routine** (ops; S) — periodic copy of
   data/apacenye.sqlite + capture/ out of the working tree.
   blocked-by: nothing.
@@ -36,8 +32,8 @@ _(nothing committed as next work)_
 - **B-9 — W1-v1 ensemble p_model** (strategy; L) — same worker, better
   distribution. blocked-by: calibration evidence that the Gaussian is the
   binding limitation (σ is now evidence-based, OD-11 resolved 2026-07-19).
-  plan-required (Fable) — not yet written; write once B-4 reports have real
-  samples showing the Gaussian is the limitation.
+  plan-required (Fable) — not yet written; write once the `apacenye calibration`
+  report has real samples showing the Gaussian is the limitation.
 - **B-10 — E1 FOMC cross-venue worker** (strategy; M) — blocked-by: OD-13
   (fed-funds-futures data path/licensing).
   plan-required (Fable) — not yet written; OD-13 desk research (free/licensed
@@ -69,8 +65,8 @@ _(nothing committed as next work)_
   shadow forecasts, OR an NDFD archive path. Requires weather.py + worker
   signature change (σ by hours-to-settlement).
   plan-required (Fable) — not yet written; a plan must choose shadow-forecast
-  vs NDFD-ETL source and fix the σ(hours-to-settlement) interface. B-4 output
-  is an input.
+  vs NDFD-ETL source and fix the σ(hours-to-settlement) interface. The
+  `apacenye calibration` report is an input.
 
 ## Hardening-session only
 
